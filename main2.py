@@ -11,6 +11,7 @@ USAR_COLOR = sys.stdout.isatty()
 if USAR_COLOR and os.name == "nt":
     os.system("")
 
+RUT_POR_DEFECTO = "24.365.895-K"
 EQUIPO = "Grupo 1"
 
 TEMA = {
@@ -20,9 +21,6 @@ TEMA = {
     "suave": "#8F9BBF",
     "rejilla": "#26324F",
     "curvas": ["#FF6B9D", "#4DE1C1", "#FFC857"],
-    "umbral": "#FF4D4D",
-    "ok": "#4DE1C1",
-    "mal": "#FF6B6B",
 }
 
 CODIGOS = {
@@ -30,7 +28,6 @@ CODIGOS = {
     "rojo": "31",
     "verde": "32",
     "amarillo": "33",
-    "azul": "34",
     "magenta": "35",
     "cian": "36",
     "gris": "90",
@@ -47,9 +44,6 @@ K_TABLA = 10
 K_LIMITE = 3000
 TOL_CONV = 1e-9
 ANCHO_PANTALLA = 82
-RUT_POR_DEFECTO = "24.365.895-K"
-RECOMENDAR_ENTRE = ["A", "B", "C"]
-TOL_GRAFICO = 0.01
 
 
 def pintar(texto, *estilos):
@@ -148,32 +142,8 @@ def k_estable(sumas, limite, tolerancia_relativa):
     return len(sumas)
 
 
-def logaritmo_natural(x):
-    z = (x - 1) / (x + 1)
-    z2 = z * z
-    potencia = z
-    total = 0.0
-    n = 0
-    while n < 100000:
-        termino = potencia / (2 * n + 1)
-        total += termino
-        if abs(termino) < 1e-16:
-            break
-        potencia *= z2
-        n += 1
-    return 2 * total
-
-
-def limite_teorico(caso, p):
-    if caso == "A":
-        return 1 / p
-    if caso == "B":
-        return -p * logaritmo_natural(p) / (1 - p)
-    return 1 / p + 1
-
-
 def imprimir_tablas(rut, probs, series):
-    banner("EVALUACIÓN INTEGRADA DE DESEMPEÑO N°2", "MATE1133 · Límites, Sucesiones y Series · Protocolo ARQ")
+    banner("EVALUACIÓN INTEGRADA DE DESEMPEÑO N°2", "MATE1133 · Límites, Sucesiones y Series")
     seccion("Datos de entrada")
     d = extraer_digitos(rut)
     print(f"  RUT utilizado   {pintar(rut, 'amarillo', 'negrita')}")
@@ -196,22 +166,17 @@ def imprimir_tablas(rut, probs, series):
         print(sangria + borde(anchos, "└", "┴", "┘"))
 
 
-def imprimir_convergencia(probs, resultados):
+def imprimir_convergencia(resultados):
     seccion("Convergencia y límite empírico")
-    print(pintar(f"  k = {K_LIMITE} términos · tolerancia numérica {TOL_CONV}", "gris"))
-    anchos = [5, 12, 13, 9, 14, 14, 9, 7]
-    titulos = ["Caso", "p", "Estado", "Razón", "Límite emp.", "Límite teór.", "Error", "k est."]
+    print(pintar(f"  k = {K_LIMITE} términos · tolerancia {TOL_CONV}", "gris"))
+    anchos = [5, 12, 13, 16, 9]
+    titulos = ["Caso", "p", "Estado", "Límite empírico", "k estable"]
     print(borde(anchos, "┌", "┬", "┐"))
     print(fila_caja([celda(t, a, "^", "negrita", "cian") for t, a in zip(titulos, anchos)]))
-    error_maximo = 0.0
     for caso in CASOS:
         print(borde(anchos, "├", "┼", "┤"))
         for j in range(3):
             r = resultados[(caso, j)]
-            teorico = limite_teorico(caso, r["p"])
-            error = abs(r["limite"] - teorico)
-            if error > error_maximo:
-                error_maximo = error
             if r["converge"]:
                 estado = celda("✔ converge", anchos[2], "^", "verde", "negrita")
             else:
@@ -220,27 +185,15 @@ def imprimir_convergencia(probs, resultados):
                 celda(caso, anchos[0], "^", "amarillo", "negrita"),
                 celda(f"p{j + 1} = {r['p']:.4f}", anchos[1], "^"),
                 estado,
-                celda(f"{r['razon']:.4f}", anchos[3], ">"),
-                celda(f"{r['limite']:.6f}", anchos[4], ">"),
-                celda(f"{teorico:.6f}", anchos[5], ">"),
-                celda(f"{error:.1e}", anchos[6], ">", "gris"),
-                celda(str(r["k_estable"]), anchos[7], ">"),
+                celda(f"{r['limite']:.6f}", anchos[3], ">"),
+                celda(str(r["k_estable"]), anchos[4], ">"),
             ]))
     print(borde(anchos, "└", "┴", "┘"))
-    print()
-    print(pintar("  Justificación matemática (criterio del cociente), con a_i el i-ésimo término:", "negrita"))
-    print("    Caso A: a_(i+1)/a_i = (i+1)/i · (1-p)    → 1-p")
-    print("    Caso B: a_(i+1)/a_i = i/(i+1) · (1-p)    → 1-p")
-    print("    Caso C: a_(i+1)/a_i = (i+2)/(i+1) · (1-p) → 1-p")
-    print("    Como 0 < p < 1, la razón 1-p es menor que 1, por lo tanto las tres series convergen.")
-    print("    Un estado ✔ exige además que la diferencia entre sumas consecutivas sea menor que la tolerancia.")
-    print(pintar(f"    Error máximo entre límite empírico y teórico: {error_maximo:.2e}", "gris"))
 
 
 def grafico_estilizado(caso, probs, series, limites):
-    k_1pct = [k_estable(series[j], limites[j], TOL_GRAFICO) for j in range(3)]
+    k_1pct = [k_estable(series[j], limites[j], 0.01) for j in range(3)]
     k_graf = min(max(20, int(max(k_1pct) * 1.35)), K_LIMITE)
-    teoricos = [limite_teorico(caso, probs[j]) for j in range(3)]
     ks = list(range(1, k_graf + 1))
     y_tope = max(limites) * 1.18
     orden = sorted(range(3), key=lambda j: -limites[j])
@@ -250,19 +203,13 @@ def grafico_estilizado(caso, probs, series, limites):
     fig.patch.set_facecolor(TEMA["fondo"])
     ax.set_facecolor(TEMA["panel"])
 
-    if C_MAX < y_tope:
-        ax.axhspan(C_MAX, y_tope, color=TEMA["umbral"], alpha=0.07, linewidth=0)
-        ax.axhline(C_MAX, color=TEMA["umbral"], linestyle=(0, (1, 3)), linewidth=1.5)
-        ax.text(1 + k_graf * 0.012, C_MAX + y_tope * 0.012, f"C máx = {C_MAX}",
-                color=TEMA["umbral"], fontsize=9.5, fontweight="bold", va="bottom")
-
     for j in range(3):
         color = TEMA["curvas"][j]
         y = series[j][:k_graf]
         for grosor, opacidad in ((9, 0.06), (5.5, 0.12)):
             ax.plot(ks, y, color=color, linewidth=grosor, alpha=opacidad, solid_capstyle="round")
         ax.plot(ks, y, color=color, linewidth=2.3, solid_capstyle="round",
-                label=f"p{j + 1} = {probs[j]:.4f}  ·  límite {limites[j]:.4f}  ·  teórico {teoricos[j]:.4f}  ·  k ≈ {k_1pct[j]}")
+                label=f"p{j + 1} = {probs[j]:.4f}  ·  límite {limites[j]:.4f}  ·  k ≈ {k_1pct[j]}")
         ax.fill_between(ks, y, color=color, alpha=0.06)
         ax.axhline(limites[j], color=color, linestyle=(0, (6, 4)), linewidth=1.1, alpha=0.85)
         if k_1pct[j] <= k_graf:
@@ -288,7 +235,7 @@ def grafico_estilizado(caso, probs, series, limites):
     ax.set_ylabel("S_k  (costo esperado parcial)", color=TEMA["suave"], fontsize=10, labelpad=8)
 
     ax.legend(loc="lower right", frameon=True, facecolor=TEMA["fondo"], edgecolor=TEMA["rejilla"],
-              labelcolor=TEMA["texto"], fontsize=8.4)
+              labelcolor=TEMA["texto"], fontsize=8.6)
 
     fig.text(0.06, 0.945, f"Caso {caso} · {NOMBRES[caso]}", color=TEMA["texto"],
              fontsize=18, fontweight="bold", ha="left")
@@ -303,7 +250,7 @@ def grafico_estilizado(caso, probs, series, limites):
 def tabla_viabilidad(resultados):
     seccion(f"Tabla de viabilidad · C máx = {C_MAX} transmisiones esperadas")
     anchos = [5, 12, 14, 12, 24]
-    titulos = ["Caso", "p", "Límite", "¿Cumple?", f"Costo  (mitad = C máx)"]
+    titulos = ["Caso", "p", "Límite", "¿Cumple?", "Costo  (mitad = C máx)"]
     print(borde(anchos, "┌", "┬", "┐"))
     print(fila_caja([celda(t, a, "^", "negrita", "cian") for t, a in zip(titulos, anchos)]))
     for caso in CASOS:
@@ -326,7 +273,7 @@ def tabla_viabilidad(resultados):
 def recomendar(resultados):
     seccion("Recomendación")
     viables = []
-    for caso in RECOMENDAR_ENTRE:
+    for caso in CASOS:
         for j in range(3):
             r = resultados[(caso, j)]
             if r["converge"] and r["limite"] <= C_MAX:
@@ -344,32 +291,13 @@ def recomendar(resultados):
         f"Caso {caso} ({NOMBRES[caso]}) con p{j + 1} = {r['p']:.4f}",
         "",
         "Justificación:",
-        f"  • Converge: la razón del criterio del cociente es 1-p = {r['razon']:.4f} < 1,",
-        f"    y las sumas consecutivas difieren menos de {TOL_CONV} tras {K_LIMITE} términos.",
+        f"  • La serie converge: la diferencia entre S_k y S_(k-1) es menor que {TOL_CONV}",
+        f"    al final de {K_LIMITE} términos.",
         f"  • Su límite empírico es {limite:.4f}, y cumple el umbral C máx = {C_MAX}.",
-        f"  • Entre las {len(viables)} combinaciones viables (casos {', '.join(RECOMENDAR_ENTRE)}),",
-        "    es la de menor costo esperado.",
-        f"  • Se estabiliza (error menor a 1e-6) desde k = {k_est} términos.",
-        f"  • Coincide con el límite teórico {limite_teorico(caso, r['p']):.4f}.",
+        f"  • Entre las {len(viables)} combinaciones que cumplen el umbral, es la de menor costo esperado.",
+        f"  • Se estabiliza (a menos del 1 % de su límite) desde k = {k_est} términos.",
     ]
     recuadro("Combinación recomendada", lineas, "verde")
-    print()
-    print(pintar("  Ranking de combinaciones viables (menor a mayor costo esperado):", "negrita"))
-    for posicion, v in enumerate(viables, start=1):
-        print(f"    {posicion}. Caso {v[2]}, p{v[3] + 1} = {resultados[(v[2], v[3])]['p']:.4f}  →  límite {v[0]:.4f}  (k = {v[1]})")
-    descartadas = []
-    for c in CASOS:
-        for jj in range(3):
-            rr = resultados[(c, jj)]
-            if not (rr["converge"] and rr["limite"] <= C_MAX):
-                descartadas.append(f"  • Caso {c}, p{jj + 1} = {rr['p']:.4f}: límite {rr['limite']:.4f} > {C_MAX}")
-    print()
-    if descartadas:
-        print(pintar("  Combinaciones que no cumplen el umbral:", "rojo", "negrita"))
-        for linea in descartadas:
-            print(pintar(linea, "rojo"))
-    else:
-        print(pintar("  Todas las combinaciones cumplen el umbral.", "verde"))
 
 
 def leer_rut():
@@ -399,14 +327,13 @@ def main():
             series[(caso, j)] = sumas
             resultados[(caso, j)] = {
                 "p": probs[j],
-                "converge": converge and (1 - probs[j]) < 1,
-                "razon": 1 - probs[j],
+                "converge": converge,
                 "limite": limite,
-                "k_estable": k_estable(sumas, limite, 1e-6),
+                "k_estable": k_estable(sumas, limite, 0.01),
             }
 
     imprimir_tablas(rut, probs, series)
-    imprimir_convergencia(probs, resultados)
+    imprimir_convergencia(resultados)
 
     for caso in CASOS:
         series_caso = [series[(caso, j)] for j in range(3)]
@@ -415,7 +342,6 @@ def main():
 
     tabla_viabilidad(resultados)
     recomendar(resultados)
-
     print()
     print(pintar("  Gráficos guardados: grafico_caso_A.png · grafico_caso_B.png · grafico_caso_C.png", "gris"))
     plt.show()
