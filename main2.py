@@ -11,7 +11,7 @@ USAR_COLOR = sys.stdout.isatty()
 if USAR_COLOR and os.name == "nt":
     os.system("")
 
-RUT_POR_DEFECTO = "24.365.895-K"
+RUT_POR_DEFECTO = "22.735.368-6"
 EQUIPO = "Grupo 1"
 
 TEMA = {
@@ -301,14 +301,16 @@ def recomendar(resultados):
 
 
 def leer_rut():
+    print(pintar("  Al presionar Enter se aplica el RUT por defecto de un compañero del grupo: ", "gris") + pintar(RUT_POR_DEFECTO, "amarillo", "negrita"))
     try:
-        texto = input(pintar(f"Ingrese el RUT elegido (Enter para usar {RUT_POR_DEFECTO}): ", "cian")).strip()
+        texto = input(pintar("Ingrese el RUT elegido: ", "cian")).strip()
     except EOFError:
         texto = ""
     if texto == "":
+        print(pintar("Se aplicó el RUT por defecto de un compañero del grupo.", "amarillo"))
         return RUT_POR_DEFECTO
     if len(extraer_digitos(texto)) < 8:
-        print(pintar("El RUT debe tener al menos 8 dígitos. Se usa el RUT por defecto.", "amarillo"))
+        print(pintar("El RUT debe tener al menos 8 dígitos. Se aplicó el RUT por defecto de un compañero del grupo.", "amarillo"))
         return RUT_POR_DEFECTO
     return texto
 
