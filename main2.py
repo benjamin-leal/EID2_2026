@@ -48,6 +48,8 @@ K_LIMITE = 3000
 TOL_CONV = 1e-9
 ANCHO_PANTALLA = 82
 RUT_POR_DEFECTO = "24.365.895-K"
+RECOMENDAR_ENTRE = ["A", "B", "C"]
+TOL_GRAFICO = 0.01
 
 
 def pintar(texto, *estilos):
@@ -179,36 +181,37 @@ def imprimir_tablas(rut, probs, series):
     for j in range(3):
         print(f"  p{j + 1} = {pintar(format(probs[j], '.4f'), 'verde', 'negrita')}")
 
-    anchos = [6, 14, 14, 14]
+    anchos = [14, 14, 14]
+    sangria = " " * 8
     for caso in CASOS:
         seccion(f"Tabla caso {caso} · {NOMBRES[caso]}")
-        print(borde(anchos, "┌", "┬", "┐"))
-        encabezado = [celda("k", anchos[0], "^", "negrita", "cian")]
-        for j in range(3):
-            encabezado.append(celda(f"p{j + 1} = {probs[j]:.2f}", anchos[j + 1], "^", "negrita", "cian"))
-        print(fila_caja(encabezado))
-        print(borde(anchos, "├", "┼", "┤"))
+        print(sangria + borde(anchos, "┌", "┬", "┐"))
+        encabezado = [celda(f"p{j + 1} = {probs[j]:.4f}", anchos[j], "^", "negrita", "cian") for j in range(3)]
+        print(sangria + fila_caja(encabezado))
+        print(sangria + borde(anchos, "├", "┼", "┤"))
         for k in range(K_TABLA):
-            fila = [celda(f"S{k + 1}", anchos[0], "^", "gris")]
-            for j in range(3):
-                fila.append(celda(f"{series[(caso, j)][k]:.6f}", anchos[j + 1], ">"))
-            print(fila_caja(fila))
-        print(borde(anchos, "└", "┴", "┘"))
+            etiqueta = pintar(f"{'S' + str(k + 1):>6}  ", "gris")
+            fila = [celda(f"{series[(caso, j)][k]:.6f}", anchos[j], ">") for j in range(3)]
+            print(etiqueta + fila_caja(fila))
+        print(sangria + borde(anchos, "└", "┴", "┘"))
 
 
 def imprimir_convergencia(probs, resultados):
     seccion("Convergencia y límite empírico")
-    print(pintar(f"  k = {K_LIMITE} términos · tolerancia {TOL_CONV}", "gris"))
-    anchos = [5, 10, 15, 16, 15, 10, 9]
-    titulos = ["Caso", "p", "Estado", "Límite empírico", "Límite teórico", "Error", "k estable"]
+    print(pintar(f"  k = {K_LIMITE} términos · tolerancia numérica {TOL_CONV}", "gris"))
+    anchos = [5, 10, 13, 9, 14, 14, 9, 7]
+    titulos = ["Caso", "p", "Estado", "Razón", "Límite emp.", "Límite teór.", "Error", "k est."]
     print(borde(anchos, "┌", "┬", "┐"))
     print(fila_caja([celda(t, a, "^", "negrita", "cian") for t, a in zip(titulos, anchos)]))
+    error_maximo = 0.0
     for caso in CASOS:
         print(borde(anchos, "├", "┼", "┤"))
         for j in range(3):
             r = resultados[(caso, j)]
             teorico = limite_teorico(caso, r["p"])
             error = abs(r["limite"] - teorico)
+            if error > error_maximo:
+                error_maximo = error
             if r["converge"]:
                 estado = celda("✔ converge", anchos[2], "^", "verde", "negrita")
             else:
@@ -217,17 +220,27 @@ def imprimir_convergencia(probs, resultados):
                 celda(caso, anchos[0], "^", "amarillo", "negrita"),
                 celda(f"p{j + 1} = {r['p']:.2f}", anchos[1], "^"),
                 estado,
-                celda(f"{r['limite']:.6f}", anchos[3], ">"),
-                celda(f"{teorico:.6f}", anchos[4], ">"),
-                celda(f"{error:.1e}", anchos[5], ">", "gris"),
-                celda(str(r["k_estable"]), anchos[6], ">"),
+                celda(f"{r['razon']:.4f}", anchos[3], ">"),
+                celda(f"{r['limite']:.6f}", anchos[4], ">"),
+                celda(f"{teorico:.6f}", anchos[5], ">"),
+                celda(f"{error:.1e}", anchos[6], ">", "gris"),
+                celda(str(r["k_estable"]), anchos[7], ">"),
             ]))
     print(borde(anchos, "└", "┴", "┘"))
+    print()
+    print(pintar("  Justificación matemática (criterio del cociente), con a_i el i-ésimo término:", "negrita"))
+    print("    Caso A: a_(i+1)/a_i = (i+1)/i · (1-p)    → 1-p")
+    print("    Caso B: a_(i+1)/a_i = i/(i+1) · (1-p)    → 1-p")
+    print("    Caso C: a_(i+1)/a_i = (i+2)/(i+1) · (1-p) → 1-p")
+    print("    Como 0 < p < 1, la razón 1-p es menor que 1, por lo tanto las tres series convergen.")
+    print("    Un estado ✔ exige además que la diferencia entre sumas consecutivas sea menor que la tolerancia.")
+    print(pintar(f"    Error máximo entre límite empírico y teórico: {error_maximo:.2e}", "gris"))
 
 
 def grafico_estilizado(caso, probs, series, limites):
-    k_1pct = [k_estable(series[j], limites[j], 0.01) for j in range(3)]
+    k_1pct = [k_estable(series[j], limites[j], TOL_GRAFICO) for j in range(3)]
     k_graf = min(max(20, int(max(k_1pct) * 1.35)), K_LIMITE)
+    teoricos = [limite_teorico(caso, probs[j]) for j in range(3)]
     ks = list(range(1, k_graf + 1))
     y_tope = max(limites) * 1.18
     orden = sorted(range(3), key=lambda j: -limites[j])
@@ -249,7 +262,7 @@ def grafico_estilizado(caso, probs, series, limites):
         for grosor, opacidad in ((9, 0.06), (5.5, 0.12)):
             ax.plot(ks, y, color=color, linewidth=grosor, alpha=opacidad, solid_capstyle="round")
         ax.plot(ks, y, color=color, linewidth=2.3, solid_capstyle="round",
-                label=f"p{j + 1} = {probs[j]:.2f}   ·   límite {limites[j]:.4f}   ·   estable desde k ≈ {k_1pct[j]}")
+                label=f"p{j + 1} = {probs[j]:.4f}  ·  límite {limites[j]:.4f}  ·  teórico {teoricos[j]:.4f}  ·  k ≈ {k_1pct[j]}")
         ax.fill_between(ks, y, color=color, alpha=0.06)
         ax.axhline(limites[j], color=color, linestyle=(0, (6, 4)), linewidth=1.1, alpha=0.85)
         if k_1pct[j] <= k_graf:
@@ -260,7 +273,7 @@ def grafico_estilizado(caso, probs, series, limites):
                     ha="right", fontsize=9.5, fontweight="bold", color=color)
 
     ax.scatter([], [], s=60, color=TEMA["fondo"], edgecolor=TEMA["texto"], linewidth=1.8,
-               label="○  punto donde la curva queda a menos del 1 % de su límite")
+               label="punto donde la curva queda a menos del 1 % de su límite")
 
     ax.set_xlim(1, k_graf)
     ax.set_ylim(0, y_tope)
@@ -275,7 +288,7 @@ def grafico_estilizado(caso, probs, series, limites):
     ax.set_ylabel("S_k  (costo esperado parcial)", color=TEMA["suave"], fontsize=10, labelpad=8)
 
     ax.legend(loc="lower right", frameon=True, facecolor=TEMA["fondo"], edgecolor=TEMA["rejilla"],
-              labelcolor=TEMA["texto"], fontsize=8.8)
+              labelcolor=TEMA["texto"], fontsize=8.4)
 
     fig.text(0.06, 0.945, f"Caso {caso} · {NOMBRES[caso]}", color=TEMA["texto"],
              fontsize=18, fontweight="bold", ha="left")
@@ -294,7 +307,7 @@ def panel_viabilidad(resultados):
     for caso in CASOS:
         for j in range(3):
             r = resultados[(caso, j)]
-            etiquetas.append(f"Caso {caso}  ·  p{j + 1} = {r['p']:.2f}")
+            etiquetas.append(f"Caso {caso}  ·  p{j + 1} = {r['p']:.4f}")
             valores.append(r["limite"])
             cumplen.append(r["converge"] and r["limite"] <= C_MAX)
 
@@ -338,7 +351,7 @@ def panel_viabilidad(resultados):
 
 def tabla_viabilidad(resultados):
     seccion(f"Tabla de viabilidad · C máx = {C_MAX} transmisiones esperadas")
-    anchos = [5, 10, 14, 12, 24]
+    anchos = [5, 12, 14, 12, 24]
     titulos = ["Caso", "p", "Límite", "¿Cumple?", f"Costo  (mitad = C máx)"]
     print(borde(anchos, "┌", "┬", "┐"))
     print(fila_caja([celda(t, a, "^", "negrita", "cian") for t, a in zip(titulos, anchos)]))
@@ -351,7 +364,7 @@ def tabla_viabilidad(resultados):
             texto = "✔ SÍ" if cumple else "✘ NO"
             print(fila_caja([
                 celda(caso, anchos[0], "^", "amarillo", "negrita"),
-                celda(f"p{j + 1} = {r['p']:.2f}", anchos[1], "^"),
+                celda(f"p{j + 1} = {r['p']:.4f}", anchos[1], "^"),
                 celda(f"{r['limite']:.4f}", anchos[2], ">"),
                 celda(texto, anchos[3], "^", estilo, "negrita"),
                 celda(barra(r["limite"]), anchos[4], "<", estilo),
@@ -362,7 +375,7 @@ def tabla_viabilidad(resultados):
 def recomendar(resultados):
     seccion("Recomendación")
     viables = []
-    for caso in CASOS:
+    for caso in RECOMENDAR_ENTRE:
         for j in range(3):
             r = resultados[(caso, j)]
             if r["converge"] and r["limite"] <= C_MAX:
@@ -373,30 +386,32 @@ def recomendar(resultados):
             "No hay una combinación recomendable para este sistema.",
         ], "rojo")
         return
-    mejor = viables[0]
-    for v in viables:
-        if v[0] < mejor[0] or (v[0] == mejor[0] and v[1] < mejor[1]):
-            mejor = v
-    limite, k_est, caso, j = mejor
+    viables.sort()
+    limite, k_est, caso, j = viables[0]
     r = resultados[(caso, j)]
     lineas = [
-        f"Caso {caso} ({NOMBRES[caso]}) con p{j + 1} = {r['p']:.2f}",
+        f"Caso {caso} ({NOMBRES[caso]}) con p{j + 1} = {r['p']:.4f}",
         "",
         "Justificación:",
-        f"  • La serie converge: la diferencia entre S_k y S_(k-1) es menor que {TOL_CONV}",
-        f"    al final de {K_LIMITE} términos.",
+        f"  • Converge: la razón del criterio del cociente es 1-p = {r['razon']:.4f} < 1,",
+        f"    y las sumas consecutivas difieren menos de {TOL_CONV} tras {K_LIMITE} términos.",
         f"  • Su límite empírico es {limite:.4f}, y cumple el umbral C máx = {C_MAX}.",
-        f"  • Entre las {len(viables)} combinaciones viables, es la de menor costo esperado.",
+        f"  • Entre las {len(viables)} combinaciones viables (casos {', '.join(RECOMENDAR_ENTRE)}),",
+        "    es la de menor costo esperado.",
         f"  • Se estabiliza (error menor a 1e-6) desde k = {k_est} términos.",
         f"  • Coincide con el límite teórico {limite_teorico(caso, r['p']):.4f}.",
     ]
     recuadro("Combinación recomendada", lineas, "verde")
+    print()
+    print(pintar("  Ranking de combinaciones viables (menor a mayor costo esperado):", "negrita"))
+    for posicion, v in enumerate(viables, start=1):
+        print(f"    {posicion}. Caso {v[2]}, p{v[3] + 1} = {resultados[(v[2], v[3])]['p']:.4f}  →  límite {v[0]:.4f}  (k = {v[1]})")
     descartadas = []
     for c in CASOS:
         for jj in range(3):
             rr = resultados[(c, jj)]
             if not (rr["converge"] and rr["limite"] <= C_MAX):
-                descartadas.append(f"  • Caso {c}, p{jj + 1} = {rr['p']:.2f}: límite {rr['limite']:.4f} > {C_MAX}")
+                descartadas.append(f"  • Caso {c}, p{jj + 1} = {rr['p']:.4f}: límite {rr['limite']:.4f} > {C_MAX}")
     print()
     if descartadas:
         print(pintar("  Combinaciones que no cumplen el umbral:", "rojo", "negrita"))
@@ -407,6 +422,8 @@ def recomendar(resultados):
 
 
 def leer_rut():
+    if len(sys.argv) > 1:
+        return sys.argv[1]
     try:
         texto = input(pintar(f"Ingrese el RUT elegido (Enter para usar {RUT_POR_DEFECTO}): ", "cian")).strip()
     except EOFError:
@@ -433,7 +450,8 @@ def main():
             series[(caso, j)] = sumas
             resultados[(caso, j)] = {
                 "p": probs[j],
-                "converge": converge,
+                "converge": converge and (1 - probs[j]) < 1,
+                "razon": 1 - probs[j],
                 "limite": limite,
                 "k_estable": k_estable(sumas, limite, 1e-6),
             }
