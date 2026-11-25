@@ -1,25 +1,100 @@
+import os
+import sys
 import matplotlib.pyplot as plt
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+USAR_COLOR = sys.stdout.isatty()
+if USAR_COLOR and os.name == "nt":
+    os.system("")
+
+EQUIPO = "Grupo 1"
+
+TEMA = {
+    "fondo": "#0B1020",
+    "panel": "#121A33",
+    "texto": "#E8ECF8",
+    "suave": "#8F9BBF",
+    "rejilla": "#26324F",
+    "curvas": ["#FF6B9D", "#4DE1C1", "#FFC857"],
+    "umbral": "#FF4D4D",
+    "ok": "#4DE1C1",
+    "mal": "#FF6B6B",
+}
+
+CODIGOS = {
+    "negrita": "1",
+    "rojo": "31",
+    "verde": "32",
+    "amarillo": "33",
+    "azul": "34",
+    "magenta": "35",
+    "cian": "36",
+    "gris": "90",
+}
 
 CASOS = ["A", "B", "C"]
 NOMBRES = {
-    "A": "WiFi estandar",
+    "A": "WiFi estándar",
     "B": "Fibra con reintentos decrecientes",
-    "C": "Red movil con copia extra",
+    "C": "Red móvil con copia extra",
 }
-COLORES = ["tab:blue", "tab:orange", "tab:green"]
 C_MAX = 10
 K_TABLA = 10
 K_LIMITE = 3000
 TOL_CONV = 1e-9
+ANCHO_PANTALLA = 82
 RUT_POR_DEFECTO = "24.365.895-K"
 
 
-def linea(texto="", caracter="=", largo=78):
-    if texto == "":
-        print(caracter * largo)
-    else:
-        print(f" {texto} ".center(largo, caracter))
+def pintar(texto, *estilos):
+    if not USAR_COLOR or not estilos:
+        return texto
+    codigo = ";".join(CODIGOS[e] for e in estilos)
+    return f"\033[{codigo}m{texto}\033[0m"
+
+
+def celda(texto, ancho, alineacion="<", *estilos):
+    return pintar(f"{texto:{alineacion}{ancho}}", *estilos)
+
+
+def borde(anchos, izquierda, union, derecha):
+    return izquierda + union.join("─" * (a + 2) for a in anchos) + derecha
+
+
+def fila_caja(celdas):
+    return "│ " + " │ ".join(celdas) + " │"
+
+
+def banner(titulo, subtitulo):
+    interior = ANCHO_PANTALLA - 2
+    print(pintar("╔" + "═" * interior + "╗", "cian", "negrita"))
+    print(pintar("║", "cian", "negrita") + pintar(titulo.center(interior), "negrita") + pintar("║", "cian", "negrita"))
+    print(pintar("║", "cian", "negrita") + pintar(subtitulo.center(interior), "gris") + pintar("║", "cian", "negrita"))
+    print(pintar("╚" + "═" * interior + "╝", "cian", "negrita"))
+
+
+def seccion(texto):
+    print()
+    print(pintar("▌ ", "magenta", "negrita") + pintar(texto.upper(), "negrita"))
+    print(pintar("  " + "─" * (ANCHO_PANTALLA - 4), "gris"))
+
+
+def recuadro(titulo, lineas, estilo):
+    ancho = max(max(len(l) for l in lineas) + 2, len(titulo) + 5)
+    print(pintar("╭─ " + titulo + " " + "─" * (ancho - len(titulo) - 3) + "╮", estilo, "negrita"))
+    for l in lineas:
+        print(pintar("│", estilo) + " " + l.ljust(ancho - 2) + " " + pintar("│", estilo))
+    print(pintar("╰" + "─" * ancho + "╯", estilo, "negrita"))
+
+
+def barra(valor, largo=22):
+    escala = C_MAX * 2
+    llenos = round(min(valor, escala) / escala * largo)
+    return "█" * llenos + "░" * (largo - llenos)
 
 
 def extraer_digitos(rut):
@@ -96,92 +171,196 @@ def limite_teorico(caso, p):
 
 
 def imprimir_tablas(rut, probs, series):
-    linea("DATOS DE ENTRADA")
-    print(f"RUT utilizado : {rut}")
+    banner("EVALUACIÓN INTEGRADA DE DESEMPEÑO N°2", "MATE1133 · Límites, Sucesiones y Series · Protocolo ARQ")
+    seccion("Datos de entrada")
     d = extraer_digitos(rut)
-    print("Digitos d1..d8: " + ", ".join(str(x) for x in d))
+    print(f"  RUT utilizado   {pintar(rut, 'amarillo', 'negrita')}")
+    print("  Dígitos d1..d8  " + pintar("  ".join(str(x) for x in d), "cian"))
     for j in range(3):
-        print(f"p{j + 1} = {probs[j]:.4f}")
-    print()
+        print(f"  p{j + 1} = {pintar(format(probs[j], '.4f'), 'verde', 'negrita')}")
+
+    anchos = [6, 14, 14, 14]
     for caso in CASOS:
-        linea(f"TABLA CASO {caso}: {NOMBRES[caso]}")
-        print(f"{'k':>4} | " + " | ".join(f"{'p' + str(j + 1) + '=' + format(probs[j], '.2f'):>14}" for j in range(3)))
-        print("-" * 5 + "+" + "+".join(["-" * 16] * 3))
+        seccion(f"Tabla caso {caso} · {NOMBRES[caso]}")
+        print(borde(anchos, "┌", "┬", "┐"))
+        encabezado = [celda("k", anchos[0], "^", "negrita", "cian")]
+        for j in range(3):
+            encabezado.append(celda(f"p{j + 1} = {probs[j]:.2f}", anchos[j + 1], "^", "negrita", "cian"))
+        print(fila_caja(encabezado))
+        print(borde(anchos, "├", "┼", "┤"))
         for k in range(K_TABLA):
-            fila = " | ".join(f"{series[(caso, j)][k]:>14.6f}" for j in range(3))
-            print(f"{'S' + str(k + 1):>4} | {fila}")
-        print()
+            fila = [celda(f"S{k + 1}", anchos[0], "^", "gris")]
+            for j in range(3):
+                fila.append(celda(f"{series[(caso, j)][k]:.6f}", anchos[j + 1], ">"))
+            print(fila_caja(fila))
+        print(borde(anchos, "└", "┴", "┘"))
 
 
 def imprimir_convergencia(probs, resultados):
-    linea("CONVERGENCIA Y LIMITE EMPIRICO")
-    print(f"(k = {K_LIMITE} terminos, tolerancia = {TOL_CONV})")
-    print()
-    print(f"{'Caso':<5}{'p':<10}{'Converge':<10}{'Limite empirico':>17}{'Limite teorico':>16}{'Diferencia':>14}{'k (error<1e-6)':>16}")
-    print("-" * 88)
+    seccion("Convergencia y límite empírico")
+    print(pintar(f"  k = {K_LIMITE} términos · tolerancia {TOL_CONV}", "gris"))
+    anchos = [5, 10, 15, 16, 15, 10, 9]
+    titulos = ["Caso", "p", "Estado", "Límite empírico", "Límite teórico", "Error", "k estable"]
+    print(borde(anchos, "┌", "┬", "┐"))
+    print(fila_caja([celda(t, a, "^", "negrita", "cian") for t, a in zip(titulos, anchos)]))
+    for caso in CASOS:
+        print(borde(anchos, "├", "┼", "┤"))
+        for j in range(3):
+            r = resultados[(caso, j)]
+            teorico = limite_teorico(caso, r["p"])
+            error = abs(r["limite"] - teorico)
+            if r["converge"]:
+                estado = celda("✔ converge", anchos[2], "^", "verde", "negrita")
+            else:
+                estado = celda("✘ diverge", anchos[2], "^", "rojo", "negrita")
+            print(fila_caja([
+                celda(caso, anchos[0], "^", "amarillo", "negrita"),
+                celda(f"p{j + 1} = {r['p']:.2f}", anchos[1], "^"),
+                estado,
+                celda(f"{r['limite']:.6f}", anchos[3], ">"),
+                celda(f"{teorico:.6f}", anchos[4], ">"),
+                celda(f"{error:.1e}", anchos[5], ">", "gris"),
+                celda(str(r["k_estable"]), anchos[6], ">"),
+            ]))
+    print(borde(anchos, "└", "┴", "┘"))
+
+
+def grafico_estilizado(caso, probs, series, limites):
+    k_1pct = [k_estable(series[j], limites[j], 0.01) for j in range(3)]
+    k_graf = min(max(20, int(max(k_1pct) * 1.35)), K_LIMITE)
+    ks = list(range(1, k_graf + 1))
+    y_tope = max(limites) * 1.18
+    orden = sorted(range(3), key=lambda j: -limites[j])
+    saltos = [8, -18, -32]
+
+    fig, ax = plt.subplots(figsize=(11, 6.6))
+    fig.patch.set_facecolor(TEMA["fondo"])
+    ax.set_facecolor(TEMA["panel"])
+
+    if C_MAX < y_tope:
+        ax.axhspan(C_MAX, y_tope, color=TEMA["umbral"], alpha=0.07, linewidth=0)
+        ax.axhline(C_MAX, color=TEMA["umbral"], linestyle=(0, (1, 3)), linewidth=1.5)
+        ax.text(1 + k_graf * 0.012, C_MAX + y_tope * 0.012, f"C máx = {C_MAX}",
+                color=TEMA["umbral"], fontsize=9.5, fontweight="bold", va="bottom")
+
+    for j in range(3):
+        color = TEMA["curvas"][j]
+        y = series[j][:k_graf]
+        for grosor, opacidad in ((9, 0.06), (5.5, 0.12)):
+            ax.plot(ks, y, color=color, linewidth=grosor, alpha=opacidad, solid_capstyle="round")
+        ax.plot(ks, y, color=color, linewidth=2.3, solid_capstyle="round",
+                label=f"p{j + 1} = {probs[j]:.2f}   ·   límite {limites[j]:.4f}   ·   estable desde k ≈ {k_1pct[j]}")
+        ax.fill_between(ks, y, color=color, alpha=0.06)
+        ax.axhline(limites[j], color=color, linestyle=(0, (6, 4)), linewidth=1.1, alpha=0.85)
+        if k_1pct[j] <= k_graf:
+            ax.scatter([k_1pct[j]], [series[j][k_1pct[j] - 1]], s=75, color=TEMA["fondo"],
+                       edgecolor=color, linewidth=2, zorder=5)
+        ax.annotate(f"límite p{j + 1} = {limites[j]:.4f}", xy=(k_graf, limites[j]),
+                    xytext=(-8, saltos[orden.index(j)]), textcoords="offset points",
+                    ha="right", fontsize=9.5, fontweight="bold", color=color)
+
+    ax.scatter([], [], s=60, color=TEMA["fondo"], edgecolor=TEMA["texto"], linewidth=1.8,
+               label="○  punto donde la curva queda a menos del 1 % de su límite")
+
+    ax.set_xlim(1, k_graf)
+    ax.set_ylim(0, y_tope)
+    ax.grid(True, color=TEMA["rejilla"], linewidth=0.7, alpha=0.8)
+    ax.set_axisbelow(True)
+    for lado in ("top", "right"):
+        ax.spines[lado].set_visible(False)
+    for lado in ("left", "bottom"):
+        ax.spines[lado].set_color(TEMA["rejilla"])
+    ax.tick_params(colors=TEMA["suave"], labelsize=9)
+    ax.set_xlabel("k  (términos acumulados)", color=TEMA["suave"], fontsize=10, labelpad=8)
+    ax.set_ylabel("S_k  (costo esperado parcial)", color=TEMA["suave"], fontsize=10, labelpad=8)
+
+    ax.legend(loc="lower right", frameon=True, facecolor=TEMA["fondo"], edgecolor=TEMA["rejilla"],
+              labelcolor=TEMA["texto"], fontsize=8.8)
+
+    fig.text(0.06, 0.945, f"Caso {caso} · {NOMBRES[caso]}", color=TEMA["texto"],
+             fontsize=18, fontweight="bold", ha="left")
+    fig.text(0.06, 0.903, "Sumas parciales S_k y el valor límite al que se estabiliza cada curva",
+             color=TEMA["suave"], fontsize=10.5, ha="left")
+    fig.text(0.97, 0.018, f"EID N°2 · MATE1133 · {EQUIPO}", color=TEMA["suave"], fontsize=8, ha="right")
+    fig.subplots_adjust(left=0.08, right=0.97, top=0.86, bottom=0.11)
+    fig.savefig(f"grafico_caso_{caso}.png", dpi=160, facecolor=fig.get_facecolor())
+    return fig
+
+
+def panel_viabilidad(resultados):
+    etiquetas = []
+    valores = []
+    cumplen = []
     for caso in CASOS:
         for j in range(3):
             r = resultados[(caso, j)]
-            texto = "SI" if r["converge"] else "NO"
-            teorico = limite_teorico(caso, r["p"])
-            diferencia = abs(r["limite"] - teorico)
-            print(f"{caso:<5}{'p' + str(j + 1) + '=' + format(r['p'], '.2f'):<10}{texto:<10}{r['limite']:>17.6f}{teorico:>16.6f}{diferencia:>14.2e}{r['k_estable']:>16}")
-        print()
+            etiquetas.append(f"Caso {caso}  ·  p{j + 1} = {r['p']:.2f}")
+            valores.append(r["limite"])
+            cumplen.append(r["converge"] and r["limite"] <= C_MAX)
 
+    tope = max(max(valores) * 1.2, C_MAX * 1.35)
+    posiciones = list(range(len(valores)))[::-1]
 
-def grafico_matplotlib(caso, probs, series, limites):
-    k_graf = 20
-    for j in range(3):
-        k_aprox = k_estable(series[j], limites[j], 0.01)
-        if k_aprox * 1.3 > k_graf:
-            k_graf = int(k_aprox * 1.3)
-    if k_graf > K_LIMITE:
-        k_graf = K_LIMITE
+    fig, ax = plt.subplots(figsize=(11, 6.6))
+    fig.patch.set_facecolor(TEMA["fondo"])
+    ax.set_facecolor(TEMA["panel"])
+    colores = [TEMA["ok"] if c else TEMA["mal"] for c in cumplen]
+    ax.barh(posiciones, valores, color=colores, height=0.62, alpha=0.9)
+    ax.axvline(C_MAX, color=TEMA["umbral"], linestyle=(0, (1, 3)), linewidth=1.6)
+    ax.text(C_MAX + tope * 0.008, len(valores) - 0.35, f"C máx = {C_MAX}",
+            color=TEMA["umbral"], fontsize=9.5, fontweight="bold", va="bottom")
+    for pos, v, c in zip(posiciones, valores, cumplen):
+        marca = "✔" if c else "✘"
+        ax.text(v + tope * 0.012, pos, f"{v:.3f}  {marca}", va="center", fontsize=9.5,
+                color=TEMA["ok"] if c else TEMA["mal"], fontweight="bold")
 
-    ks = list(range(1, k_graf + 1))
-    orden = sorted(range(3), key=lambda j: -limites[j])
-    desplazamientos = [6, -14, -28]
+    ax.set_yticks(posiciones)
+    ax.set_yticklabels(etiquetas, color=TEMA["texto"], fontsize=9.5)
+    ax.set_xlim(0, tope)
+    ax.grid(True, axis="x", color=TEMA["rejilla"], linewidth=0.7, alpha=0.8)
+    ax.set_axisbelow(True)
+    for lado in ("top", "right"):
+        ax.spines[lado].set_visible(False)
+    for lado in ("left", "bottom"):
+        ax.spines[lado].set_color(TEMA["rejilla"])
+    ax.tick_params(axis="x", colors=TEMA["suave"], labelsize=9)
+    ax.tick_params(axis="y", length=0)
+    ax.set_xlabel("Costo esperado (transmisiones)", color=TEMA["suave"], fontsize=10, labelpad=8)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for j in range(3):
-        color = COLORES[j]
-        ax.plot(ks, series[j][:k_graf], color=color, linewidth=2,
-                label=f"p{j + 1} = {probs[j]:.2f}  (limite = {limites[j]:.4f})")
-        ax.axhline(limites[j], color=color, linestyle="--", linewidth=1.2)
-        ax.annotate(f"limite p{j + 1} = {limites[j]:.4f}",
-                    xy=(k_graf, limites[j]),
-                    xytext=(-6, desplazamientos[orden.index(j)]),
-                    textcoords="offset points",
-                    ha="right", color=color, fontsize=9)
-
-    ax.set_title(f"Caso {caso}: {NOMBRES[caso]}")
-    ax.set_xlabel("k (numero de terminos)")
-    ax.set_ylabel("S_k (suma parcial)")
-    ax.set_xlim(1, k_graf)
-    ax.set_ylim(0, max(limites) * 1.15)
-    ax.grid(True, alpha=0.3)
-    ax.legend(loc="lower right")
-    fig.tight_layout()
-    fig.savefig(f"grafico_caso_{caso}.png", dpi=150)
+    fig.text(0.06, 0.945, "Mapa de viabilidad", color=TEMA["texto"], fontsize=18, fontweight="bold", ha="left")
+    fig.text(0.06, 0.903, f"Límite empírico de cada combinación frente al umbral C máx = {C_MAX}",
+             color=TEMA["suave"], fontsize=10.5, ha="left")
+    fig.text(0.97, 0.018, f"EID N°2 · MATE1133 · {EQUIPO}", color=TEMA["suave"], fontsize=8, ha="right")
+    fig.subplots_adjust(left=0.2, right=0.96, top=0.86, bottom=0.11)
+    fig.savefig("panel_viabilidad.png", dpi=160, facecolor=fig.get_facecolor())
     return fig
 
 
 def tabla_viabilidad(resultados):
-    linea(f"TABLA DE VIABILIDAD (C_max = {C_MAX} transmisiones esperadas)")
-    print(f"{'Caso':<6}{'p':<10}{'Converge':<10}{'Limite empirico':>17}{'Cumple (<= C_max)':>20}")
-    print("-" * 63)
+    seccion(f"Tabla de viabilidad · C máx = {C_MAX} transmisiones esperadas")
+    anchos = [5, 10, 14, 12, 24]
+    titulos = ["Caso", "p", "Límite", "¿Cumple?", f"Costo  (mitad = C máx)"]
+    print(borde(anchos, "┌", "┬", "┐"))
+    print(fila_caja([celda(t, a, "^", "negrita", "cian") for t, a in zip(titulos, anchos)]))
     for caso in CASOS:
+        print(borde(anchos, "├", "┼", "┤"))
         for j in range(3):
             r = resultados[(caso, j)]
             cumple = r["converge"] and r["limite"] <= C_MAX
-            texto = "SI" if cumple else "NO"
-            conv = "SI" if r["converge"] else "NO"
-            print(f"{caso:<6}{'p' + str(j + 1) + '=' + format(r['p'], '.2f'):<10}{conv:<10}{r['limite']:>17.4f}{texto:>20}")
-        print()
+            estilo = "verde" if cumple else "rojo"
+            texto = "✔ SÍ" if cumple else "✘ NO"
+            print(fila_caja([
+                celda(caso, anchos[0], "^", "amarillo", "negrita"),
+                celda(f"p{j + 1} = {r['p']:.2f}", anchos[1], "^"),
+                celda(f"{r['limite']:.4f}", anchos[2], ">"),
+                celda(texto, anchos[3], "^", estilo, "negrita"),
+                celda(barra(r["limite"]), anchos[4], "<", estilo),
+            ]))
+    print(borde(anchos, "└", "┴", "┘"))
 
 
 def recomendar(resultados):
-    linea("RECOMENDACION")
+    seccion("Recomendación")
     viables = []
     for caso in CASOS:
         for j in range(3):
@@ -189,8 +368,10 @@ def recomendar(resultados):
             if r["converge"] and r["limite"] <= C_MAX:
                 viables.append((r["limite"], r["k_estable"], caso, j))
     if len(viables) == 0:
-        print("Ninguna combinacion cumple el umbral C_max. No hay combinacion recomendable.")
-        print()
+        recuadro("Sin recomendación", [
+            "Ninguna combinación cumple el umbral C máx.",
+            "No hay una combinación recomendable para este sistema.",
+        ], "rojo")
         return
     mejor = viables[0]
     for v in viables:
@@ -198,37 +379,42 @@ def recomendar(resultados):
             mejor = v
     limite, k_est, caso, j = mejor
     r = resultados[(caso, j)]
-    print(f"Combinacion recomendada: Caso {caso} ({NOMBRES[caso]}) con p{j + 1} = {r['p']:.2f}")
-    print()
-    print("Justificacion:")
-    print(f"  - La serie converge: la diferencia entre S_k y S_(k-1) es menor que {TOL_CONV} al final de {K_LIMITE} terminos.")
-    print(f"  - Su limite empirico es {limite:.4f}, que cumple el umbral C_max = {C_MAX}.")
-    print(f"  - Entre las {len(viables)} combinaciones que cumplen el umbral, es la de menor costo esperado.")
-    print(f"  - Se estabiliza (error menor a 1e-6) desde k = {k_est} terminos.")
-    print(f"  - Coincide con el limite teorico {limite_teorico(caso, r['p']):.4f}.")
-    print()
-    print("Combinaciones que no cumplen el umbral:")
-    hay_no_viables = False
+    lineas = [
+        f"Caso {caso} ({NOMBRES[caso]}) con p{j + 1} = {r['p']:.2f}",
+        "",
+        "Justificación:",
+        f"  • La serie converge: la diferencia entre S_k y S_(k-1) es menor que {TOL_CONV}",
+        f"    al final de {K_LIMITE} términos.",
+        f"  • Su límite empírico es {limite:.4f}, y cumple el umbral C máx = {C_MAX}.",
+        f"  • Entre las {len(viables)} combinaciones viables, es la de menor costo esperado.",
+        f"  • Se estabiliza (error menor a 1e-6) desde k = {k_est} términos.",
+        f"  • Coincide con el límite teórico {limite_teorico(caso, r['p']):.4f}.",
+    ]
+    recuadro("Combinación recomendada", lineas, "verde")
+    descartadas = []
     for c in CASOS:
         for jj in range(3):
             rr = resultados[(c, jj)]
             if not (rr["converge"] and rr["limite"] <= C_MAX):
-                hay_no_viables = True
-                print(f"  - Caso {c}, p{jj + 1} = {rr['p']:.2f}: limite {rr['limite']:.4f} > {C_MAX}")
-    if not hay_no_viables:
-        print("  (ninguna)")
+                descartadas.append(f"  • Caso {c}, p{jj + 1} = {rr['p']:.2f}: límite {rr['limite']:.4f} > {C_MAX}")
     print()
+    if descartadas:
+        print(pintar("  Combinaciones que no cumplen el umbral:", "rojo", "negrita"))
+        for linea in descartadas:
+            print(pintar(linea, "rojo"))
+    else:
+        print(pintar("  Todas las combinaciones cumplen el umbral.", "verde"))
 
 
 def leer_rut():
     try:
-        texto = input(f"Ingrese el RUT elegido (Enter para usar {RUT_POR_DEFECTO}): ").strip()
+        texto = input(pintar(f"Ingrese el RUT elegido (Enter para usar {RUT_POR_DEFECTO}): ", "cian")).strip()
     except EOFError:
         texto = ""
     if texto == "":
         return RUT_POR_DEFECTO
     if len(extraer_digitos(texto)) < 8:
-        print("El RUT debe tener al menos 8 digitos. Se usa el RUT por defecto.")
+        print(pintar("El RUT debe tener al menos 8 dígitos. Se usa el RUT por defecto.", "amarillo"))
         return RUT_POR_DEFECTO
     return texto
 
@@ -258,12 +444,14 @@ def main():
     for caso in CASOS:
         series_caso = [series[(caso, j)] for j in range(3)]
         limites_caso = [resultados[(caso, j)]["limite"] for j in range(3)]
-        grafico_matplotlib(caso, probs, series_caso, limites_caso)
+        grafico_estilizado(caso, probs, series_caso, limites_caso)
 
+    panel_viabilidad(resultados)
     tabla_viabilidad(resultados)
     recomendar(resultados)
 
-    print("Graficos guardados: grafico_caso_A.png, grafico_caso_B.png, grafico_caso_C.png")
+    print()
+    print(pintar("  Gráficos guardados: grafico_caso_A.png · grafico_caso_B.png · grafico_caso_C.png · panel_viabilidad.png", "gris"))
     plt.show()
 
 
