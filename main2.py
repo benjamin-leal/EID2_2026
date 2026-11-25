@@ -199,7 +199,7 @@ def imprimir_tablas(rut, probs, series):
 def imprimir_convergencia(probs, resultados):
     seccion("Convergencia y límite empírico")
     print(pintar(f"  k = {K_LIMITE} términos · tolerancia numérica {TOL_CONV}", "gris"))
-    anchos = [5, 10, 13, 9, 14, 14, 9, 7]
+    anchos = [5, 12, 13, 9, 14, 14, 9, 7]
     titulos = ["Caso", "p", "Estado", "Razón", "Límite emp.", "Límite teór.", "Error", "k est."]
     print(borde(anchos, "┌", "┬", "┐"))
     print(fila_caja([celda(t, a, "^", "negrita", "cian") for t, a in zip(titulos, anchos)]))
@@ -218,7 +218,7 @@ def imprimir_convergencia(probs, resultados):
                 estado = celda("✘ diverge", anchos[2], "^", "rojo", "negrita")
             print(fila_caja([
                 celda(caso, anchos[0], "^", "amarillo", "negrita"),
-                celda(f"p{j + 1} = {r['p']:.2f}", anchos[1], "^"),
+                celda(f"p{j + 1} = {r['p']:.4f}", anchos[1], "^"),
                 estado,
                 celda(f"{r['razon']:.4f}", anchos[3], ">"),
                 celda(f"{r['limite']:.6f}", anchos[4], ">"),
@@ -300,55 +300,6 @@ def grafico_estilizado(caso, probs, series, limites):
     return fig
 
 
-def panel_viabilidad(resultados):
-    etiquetas = []
-    valores = []
-    cumplen = []
-    for caso in CASOS:
-        for j in range(3):
-            r = resultados[(caso, j)]
-            etiquetas.append(f"Caso {caso}  ·  p{j + 1} = {r['p']:.4f}")
-            valores.append(r["limite"])
-            cumplen.append(r["converge"] and r["limite"] <= C_MAX)
-
-    tope = max(max(valores) * 1.2, C_MAX * 1.35)
-    posiciones = list(range(len(valores)))[::-1]
-
-    fig, ax = plt.subplots(figsize=(11, 6.6))
-    fig.patch.set_facecolor(TEMA["fondo"])
-    ax.set_facecolor(TEMA["panel"])
-    colores = [TEMA["ok"] if c else TEMA["mal"] for c in cumplen]
-    ax.barh(posiciones, valores, color=colores, height=0.62, alpha=0.9)
-    ax.axvline(C_MAX, color=TEMA["umbral"], linestyle=(0, (1, 3)), linewidth=1.6)
-    ax.text(C_MAX + tope * 0.008, len(valores) - 0.35, f"C máx = {C_MAX}",
-            color=TEMA["umbral"], fontsize=9.5, fontweight="bold", va="bottom")
-    for pos, v, c in zip(posiciones, valores, cumplen):
-        marca = "✔" if c else "✘"
-        ax.text(v + tope * 0.012, pos, f"{v:.3f}  {marca}", va="center", fontsize=9.5,
-                color=TEMA["ok"] if c else TEMA["mal"], fontweight="bold")
-
-    ax.set_yticks(posiciones)
-    ax.set_yticklabels(etiquetas, color=TEMA["texto"], fontsize=9.5)
-    ax.set_xlim(0, tope)
-    ax.grid(True, axis="x", color=TEMA["rejilla"], linewidth=0.7, alpha=0.8)
-    ax.set_axisbelow(True)
-    for lado in ("top", "right"):
-        ax.spines[lado].set_visible(False)
-    for lado in ("left", "bottom"):
-        ax.spines[lado].set_color(TEMA["rejilla"])
-    ax.tick_params(axis="x", colors=TEMA["suave"], labelsize=9)
-    ax.tick_params(axis="y", length=0)
-    ax.set_xlabel("Costo esperado (transmisiones)", color=TEMA["suave"], fontsize=10, labelpad=8)
-
-    fig.text(0.06, 0.945, "Mapa de viabilidad", color=TEMA["texto"], fontsize=18, fontweight="bold", ha="left")
-    fig.text(0.06, 0.903, f"Límite empírico de cada combinación frente al umbral C máx = {C_MAX}",
-             color=TEMA["suave"], fontsize=10.5, ha="left")
-    fig.text(0.97, 0.018, f"EID N°2 · MATE1133 · {EQUIPO}", color=TEMA["suave"], fontsize=8, ha="right")
-    fig.subplots_adjust(left=0.2, right=0.96, top=0.86, bottom=0.11)
-    fig.savefig("panel_viabilidad.png", dpi=160, facecolor=fig.get_facecolor())
-    return fig
-
-
 def tabla_viabilidad(resultados):
     seccion(f"Tabla de viabilidad · C máx = {C_MAX} transmisiones esperadas")
     anchos = [5, 12, 14, 12, 24]
@@ -422,8 +373,6 @@ def recomendar(resultados):
 
 
 def leer_rut():
-    if len(sys.argv) > 1:
-        return sys.argv[1]
     try:
         texto = input(pintar(f"Ingrese el RUT elegido (Enter para usar {RUT_POR_DEFECTO}): ", "cian")).strip()
     except EOFError:
@@ -464,12 +413,11 @@ def main():
         limites_caso = [resultados[(caso, j)]["limite"] for j in range(3)]
         grafico_estilizado(caso, probs, series_caso, limites_caso)
 
-    panel_viabilidad(resultados)
     tabla_viabilidad(resultados)
     recomendar(resultados)
 
     print()
-    print(pintar("  Gráficos guardados: grafico_caso_A.png · grafico_caso_B.png · grafico_caso_C.png · panel_viabilidad.png", "gris"))
+    print(pintar("  Gráficos guardados: grafico_caso_A.png · grafico_caso_B.png · grafico_caso_C.png", "gris"))
     plt.show()
 
 
